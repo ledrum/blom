@@ -1,0 +1,122 @@
+<div id="bl-app" style="max-width:640px;font-family:system-ui,sans-serif;">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+<strong id="bl-titill"></strong>
+<span>
+<button type="button" id="bl-is" style="padding:2px 10px;">IS</button>
+<button type="button" id="bl-en" style="padding:2px 10px;">EN</button>
+</span>
+</div>
+<p id="bl-leidbeiningar" style="margin:8px 0;"></p>
+<p id="bl-saga" style="margin:8px 0;font-style:italic;"></p>
+<div style="display:flex;flex-wrap:wrap;gap:16px;margin:12px 0;align-items:flex-end;">
+<div style="display:flex;flex-direction:column;gap:4px;">
+<label for="bl-x" style="display:block;margin:0;"><span id="bl-t-x"></span> (°)</label>
+<input type="number" id="bl-x" value="170" min="1" max="359" step="1" style="width:120px;margin:0;">
+</div>
+<div style="display:flex;flex-direction:column;gap:4px;">
+<label for="bl-lengd" style="display:block;margin:0;"><span id="bl-t-lengd"></span></label>
+<input type="number" id="bl-lengd" value="300" min="10" max="1000" step="10" style="width:120px;margin:0;">
+</div>
+<label style="display:block;margin:0;"><input type="checkbox" id="bl-hreyfa" checked> <span id="bl-t-hreyfa"></span></label>
+<button type="button" id="bl-teikna" style="padding:4px 14px;"></button>
+</div>
+<p id="bl-prof" style="margin:8px 0;"></p>
+<canvas id="bl-canvas" width="900" height="900" style="width:100%;height:auto;background:#000;display:block;"></canvas>
+<p id="bl-kodi" style="font-size:0.85em;margin:8px 0;"></p>
+</div>
+<script>
+(function () {
+var LITIR = ["red", "orange", "yellow", "lime", "cyan", "blue", "magenta"];
+var mal = window.ledrumMal || "is";
+var timer = null;
+var T = {
+is: {
+titill: "Blóm / stjarna",
+leid: "Forritið teiknar línu, beygir um ákveðið horn, skiptir um lit og endurtekur, með línu sem styttist um eitt í hverju skrefi. Þetta er gamla Logo-forritið <code>REPEAT [SETPC REPCOUNT FD 200 RT :X]</code> í nýjum búningi. Breyttu beygjunni og ýttu á Teikna.",
+x: "Beygja", lengd: "Upphafslengd", hreyfa: "Sýna teikninguna verða til", teikna: "Teikna",
+saga: "Ég bjó til svona stjörnur í Logo í tölvutíma í Holtaskóla þegar ég var 16 ára. Ég fékk 10 í tölvu! :P",
+prof: "Prófaðu: 170, 144, 160, 175, 91, 121, 119, 95.",
+kodi: 'Kóði: <a href="https://github.com/ledrum/blom">github.com/ledrum/blom</a>'
+},
+en: {
+titill: "Flower / star",
+leid: "The program draws a line, turns by a fixed angle, changes colour and repeats, with the line getting one step shorter each time. It is the old Logo program <code>REPEAT [SETPC REPCOUNT FD 200 RT :X]</code> in a new form. Change the turn angle and press Draw.",
+x: "Turn angle", lengd: "Starting length", hreyfa: "Animate the drawing", teikna: "Draw",
+saga: "I made stars like this in Logo in a computer class at Holtaskóli when I was 16. I got a 10 in computing! :P",
+prof: "Try: 170, 144, 160, 175, 91, 121, 119, 95.",
+kodi: 'Code: <a href="https://github.com/ledrum/blom">github.com/ledrum/blom</a>'
+}
+};
+function $(id) { return document.getElementById(id); }
+function rad(g) { return g * Math.PI / 180; }
+function leid(X, lengd) {
+var punktar = [[0, 0]];
+var x = 0, y = 0, h = 0;
+for (var l = lengd; l > 0; l--) {
+x += l * Math.cos(rad(h));
+y += l * Math.sin(rad(h));
+h -= X;
+punktar.push([x, y]);
+}
+return punktar;
+}
+function teikna() {
+if (timer) { cancelAnimationFrame(timer); timer = null; }
+var X = parseFloat($("bl-x").value);
+var lengd = parseInt($("bl-lengd").value, 10);
+if (isNaN(X) || isNaN(lengd) || lengd < 1) { return; }
+lengd = Math.min(lengd, 1000);
+var c = $("bl-canvas"), g = c.getContext("2d");
+g.fillStyle = "#000";
+g.fillRect(0, 0, c.width, c.height);
+var p = leid(X, lengd);
+var minx = 0, maxx = 0, miny = 0, maxy = 0;
+for (var i = 0; i < p.length; i++) {
+minx = Math.min(minx, p[i][0]); maxx = Math.max(maxx, p[i][0]);
+miny = Math.min(miny, p[i][1]); maxy = Math.max(maxy, p[i][1]);
+}
+var rammi = 20;
+var b = Math.max(maxx - minx, 1), hh = Math.max(maxy - miny, 1);
+var k = Math.min((c.width - 2 * rammi) / b, (c.height - 2 * rammi) / hh);
+var ox = (c.width - b * k) / 2 - minx * k;
+var oy = (c.height + hh * k) / 2 + miny * k;
+g.lineWidth = 1.5;
+g.lineCap = "round";
+var n = p.length - 1;
+var skref = 0;
+var hradi = $("bl-hreyfa").checked ? Math.max(1, Math.ceil(n / 240)) : n;
+function bita() {
+var lok = Math.min(skref + hradi, n);
+for (; skref < lok; skref++) {
+g.strokeStyle = LITIR[skref % LITIR.length];
+g.beginPath();
+g.moveTo(ox + p[skref][0] * k, oy - p[skref][1] * k);
+g.lineTo(ox + p[skref + 1][0] * k, oy - p[skref + 1][1] * k);
+g.stroke();
+}
+if (skref < n) { timer = requestAnimationFrame(bita); } else { timer = null; }
+}
+bita();
+}
+function texti() {
+var t = T[mal];
+$("bl-titill").textContent = t.titill;
+$("bl-leidbeiningar").innerHTML = t.leid;
+$("bl-saga").textContent = t.saga;
+$("bl-t-x").textContent = t.x;
+$("bl-t-lengd").textContent = t.lengd;
+$("bl-t-hreyfa").textContent = t.hreyfa;
+$("bl-teikna").textContent = t.teikna;
+$("bl-prof").textContent = t.prof;
+$("bl-kodi").innerHTML = t.kodi;
+}
+function veljaMal(m) { window.ledrumMal = m; window.dispatchEvent(new CustomEvent("ledrum-mal", { detail: m })); }
+$("bl-is").addEventListener("click", function () { veljaMal("is"); });
+$("bl-en").addEventListener("click", function () { veljaMal("en"); });
+window.addEventListener("ledrum-mal", function (e) { mal = e.detail; texti(); });
+$("bl-teikna").addEventListener("click", teikna);
+$("bl-x").addEventListener("keydown", function (e) { if (e.key === "Enter") { teikna(); } });
+texti();
+teikna();
+})();
+</script>
